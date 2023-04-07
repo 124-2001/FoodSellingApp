@@ -20,13 +20,18 @@ public class ProductController {
     }
 
     @PostMapping("/create-product")
-    public ResponseEntity<?> createDish(@Valid @RequestBody ProductDTO dto){
+    public ResponseEntity<?> createProduct(@Valid @RequestBody ProductDTO dto){
         productService.createProduct(dto);
         return ResponseEntity.ok("Create successfully");
     }
     @PatchMapping("/update-product")
-    public ResponseEntity<?> updateDish(@Valid @RequestBody ProductDTO dto, @RequestParam String productName){
+    public ResponseEntity<?> updateProduct(@Valid @RequestBody ProductDTO dto, @RequestParam String productName){
         productService.updateProduct(productName,dto);
         return ResponseEntity.ok("Update successfully");
+    }
+    @DeleteMapping("/delete-product")
+    public ResponseEntity<?> deleteProduct(@Valid @RequestParam Long productId){
+        productService.deleteProduct(productId);
+        return ResponseEntity.ok("Delete successfully");
     }
 }

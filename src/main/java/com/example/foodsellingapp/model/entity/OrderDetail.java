@@ -24,7 +24,7 @@ public class OrderDetail {
     private Integer quantity;
     @Basic
     @Column(name = "PRICE", nullable = true, precision = 0)
-    private Long price;
+    private double price;
     @Column(name = "vote",nullable = true)
     private RankVote vote;
     @Column(name = "feed_back")
