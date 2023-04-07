@@ -8,8 +8,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DishDTO {
-    private String name;
-    private String image;
-    private Long price;
+public class OrderDetailDTO {
+    private Long orderId;
+    private Long dishId;
+    private Integer quantity;
 }
