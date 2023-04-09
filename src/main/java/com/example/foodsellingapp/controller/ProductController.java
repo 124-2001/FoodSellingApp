@@ -25,8 +25,8 @@ public class ProductController {
         return ResponseEntity.ok("Create successfully");
     }
     @PatchMapping("/update-product")
-    public ResponseEntity<?> updateProduct(@Valid @RequestBody ProductDTO dto, @RequestParam String productName){
-        productService.updateProduct(productName,dto);
+    public ResponseEntity<?> updateProduct(@Valid @RequestBody ProductDTO dto, @RequestParam("id") Long productId){
+        productService.updateProduct(productId,dto);
         return ResponseEntity.ok("Update successfully");
     }
     @DeleteMapping("/delete-product")

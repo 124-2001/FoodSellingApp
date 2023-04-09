@@ -39,14 +39,17 @@ public class OrderService {
     @Autowired
     UserRepository userRepository;
 
-    @Value("${DISTANCE_MATRIX_API_URL}")
-    private String DISTANCE_MATRIX_API_URL;
-
-    @Value("${API_KEY}")
-    private String API_KEY;
-
-    @Value("${address}")
-    private String address;
+//    @Value("${DISTANCE_MATRIX_API_URL}")
+//    private String DISTANCE_MATRIX_API_URL;
+//
+//    @Value("${API_KEY}")
+//    private String API_KEY;
+//
+//    @Value("${address}")
+//    private String address;
+    private static final String DISTANCE_MATRIX_API_URL = "https://maps.googleapis.com/maps/api/distancematrix/json";
+    private static final String API_KEY = "AIzaSyDp7J3q2UIA4WvUqWLe--QinPej2JSnrw8";
+    private static final String address ="814 láng";
 
 
     public List<Order> getAll(){
@@ -68,7 +71,7 @@ public class OrderService {
         for (OrderDetailDTO dto : dtos) {
             OrderDetail orderDetail = mapper.map(dto,OrderDetail.class);
             orderDetail.setOrderId(order.getId());
-            totalPrice+=dto.getQuantity()* productRepository.findById(Math.toIntExact(dto.getDishId())).get().getPrice();
+            totalPrice+=dto.getQuantity()* productRepository.findById(dto.getProductId()).get().getPrice();
             orderDetailRepository.save(orderDetail);
         }
         //lấy tiền vận chuyển theo khoảng cách
@@ -79,7 +82,7 @@ public class OrderService {
     }
 
     public void cancelOrder(long orderId){
-        Order order= orderRepository.findById(Math.toIntExact(orderId)).get();
+        Order order= orderRepository.findById(orderId).get();
         if(order.getStatusOrder()!= StatusOrder.WAITING){
             throw new  RuntimeException("Order is APPROVE . Can't cancel order");
         }
@@ -89,7 +92,7 @@ public class OrderService {
     }
 
     public void updateOrder(long orderId,List<OrderDetailDTO> dtos){
-        Order order= orderRepository.findById(Math.toIntExact(orderId)).get();
+        Order order= orderRepository.findById(orderId).get();
         ModelMapper mapper = new ModelMapper();
         if(order.getStatusOrder()== StatusOrder.WAITING){
             orderDetailRepository.deleteAll(orderDetailRepository.findByProductId(orderId));
@@ -102,6 +105,21 @@ public class OrderService {
         else {
             throw new  RuntimeException("Order is APPROVE or REJECT . Can't update order");
         }
+    }
+
+    public void feedbackOrder(long orderDetailId,String feedback){
+        OrderDetail orderDetail = orderDetailRepository.findById(orderDetailId).orElseThrow(()->
+                new RuntimeException("The product is not included in the order"));
+        orderDetail.setFeedBack(feedback);
+    }
+
+    public boolean approveOrder(long orderId){
+        Order order= orderRepository.findById(orderId).get();
+        if(order.getStatusOrder()==StatusOrder.WAITING){
+            order.setStatusOrder(StatusOrder.APPROVED);
+            return true;
+        }
+        return false;
     }
 
     public double getDeliveryPrice(String destination) throws IOException {
@@ -151,8 +169,8 @@ public class OrderService {
             return distanceValue;
         } catch (JSONException e) {
             e.printStackTrace();
+            return 0;
         }
-        return 0;
     }
 
 

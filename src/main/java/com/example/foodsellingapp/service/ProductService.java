@@ -35,8 +35,8 @@ public class ProductService {
         return productRepository.findAll();
     }
 
-    public Product updateProduct(String productName, ProductDTO dto){
-        Product product = productRepository.findByName(productName).orElseThrow(()-> new RuntimeException("ERROR : Dish is not found"));
+    public Product updateProduct(Long productId, ProductDTO dto){
+        Product product = productRepository.findById(productId).orElseThrow(()-> new RuntimeException("ERROR : Dish is not found"));
         if(dto.getName()!=null){
             product.setName(dto.getName());
         }
@@ -49,7 +49,7 @@ public class ProductService {
         return productRepository.save(product);
     }
     public void deleteProduct(Long productId){
-        Product product = productRepository.findById(Math.toIntExact(productId)).orElseThrow(()->new RuntimeException("Product is not exist"));
+        Product product = productRepository.findById(productId).orElseThrow(()->new RuntimeException("Product is not exist"));
         productRepository.delete(product);
     }
 

@@ -8,7 +8,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class OrderDetailDTO {
-    private Long productId;
-    private Integer quantity;
+public class UserDTO {
+    private String address;
+    private String email;
+    private String password;
 }
