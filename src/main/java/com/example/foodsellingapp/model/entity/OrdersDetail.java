@@ -5,12 +5,13 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
+import java.io.Serializable;
 
-@Table(name = "detail_order")
+@Table(name = "orders_detail")
 @Entity
 @Getter
 @Setter
-public class OrderDetail {
+public class OrdersDetail {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id",nullable = true)
@@ -19,14 +20,14 @@ public class OrderDetail {
     private Long orderId;
     @Column(name = "product_id",nullable = true)
     private Long productId;
-    @Basic
+
     @Column(name = "QUANTITY", nullable = true)
     private Integer quantity;
-    @Basic
+
     @Column(name = "PRICE", nullable = true, precision = 0)
-    private double price;
+    private Double price;
     @Column(name = "vote",nullable = true)
-    private RankVote vote;
+    private Double vote;
     @Column(name = "feed_back")
     private String feedBack;
 }

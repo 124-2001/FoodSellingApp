@@ -3,9 +3,9 @@ package com.example.foodsellingapp.service;
 import com.example.foodsellingapp.model.dto.OrderDetailDTO;
 import com.example.foodsellingapp.model.eenum.StatusOrder;
 import com.example.foodsellingapp.model.entity.Order;
-import com.example.foodsellingapp.model.entity.OrderDetail;
+import com.example.foodsellingapp.model.entity.OrdersDetail;
+import com.example.foodsellingapp.repository.OrdersDetailRepository;
 import com.example.foodsellingapp.repository.ProductRepository;
-import com.example.foodsellingapp.repository.OrderDetailRepository;
 import com.example.foodsellingapp.repository.OrderRepository;
 import com.example.foodsellingapp.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +13,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +22,6 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -33,7 +31,7 @@ public class OrderService {
     @Autowired
     OrderRepository orderRepository;
     @Autowired
-    OrderDetailRepository orderDetailRepository;
+    OrdersDetailRepository orderDetailRepository;
     @Autowired
     ProductRepository productRepository;
     @Autowired
@@ -57,7 +55,7 @@ public class OrderService {
     }
 
     public Order createOrder(List<OrderDetailDTO> dtos, Long customerId) throws IOException {
-        ModelMapper mapper = new ModelMapper();
+//        ModelMapper mapper = new ModelMapper();
         Timestamp currentTimestamp = new Timestamp(System.currentTimeMillis());
         Order order  = new Order();
         order.setCustomerId(customerId);
@@ -69,8 +67,12 @@ public class OrderService {
         }
         double totalPrice=0;
         for (OrderDetailDTO dto : dtos) {
-            OrderDetail orderDetail = mapper.map(dto,OrderDetail.class);
+            //OrderDetail orderDetail = mapper.map(dto,OrderDetail.class);
+            OrdersDetail orderDetail = new OrdersDetail();
+            orderDetail.setProductId(dto.getProductId());
+            orderDetail.setQuantity(dto.getQuantity());
             orderDetail.setOrderId(order.getId());
+            orderDetail.setPrice(productRepository.findById(dto.getProductId()).get().getPrice());
             totalPrice+=dto.getQuantity()* productRepository.findById(dto.getProductId()).get().getPrice();
             orderDetailRepository.save(orderDetail);
         }
@@ -81,13 +83,15 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
-    public void cancelOrder(long orderId){
+    public void deleteOrder(Long orderId){
         Order order= orderRepository.findById(orderId).get();
         if(order.getStatusOrder()!= StatusOrder.WAITING){
             throw new  RuntimeException("Order is APPROVE . Can't cancel order");
         }
-        List<OrderDetail> orderDetails = orderDetailRepository.findByProductId(orderId);
-        orderDetailRepository.deleteAll(orderDetails);
+        List<OrdersDetail> orderDetails = orderDetailRepository.findAllByOrderId(orderId);
+        if(!orderDetails.isEmpty()){
+            orderDetailRepository.deleteAll(orderDetails);
+        }
         orderRepository.delete(order);
     }
 
@@ -95,9 +99,9 @@ public class OrderService {
         Order order= orderRepository.findById(orderId).get();
         ModelMapper mapper = new ModelMapper();
         if(order.getStatusOrder()== StatusOrder.WAITING){
-            orderDetailRepository.deleteAll(orderDetailRepository.findByProductId(orderId));
+            orderDetailRepository.deleteAll(orderDetailRepository.findAllByOrderId(orderId));
             for (OrderDetailDTO dto : dtos) {
-                OrderDetail detail = mapper.map(dto,OrderDetail.class);
+                OrdersDetail detail = mapper.map(dto,OrdersDetail.class);
                 detail.setOrderId(orderId);
                 orderDetailRepository.save(detail);
             }
@@ -108,7 +112,7 @@ public class OrderService {
     }
 
     public void feedbackOrder(long orderDetailId,String feedback){
-        OrderDetail orderDetail = orderDetailRepository.findById(orderDetailId).orElseThrow(()->
+        OrdersDetail orderDetail = orderDetailRepository.findById(orderDetailId).orElseThrow(()->
                 new RuntimeException("The product is not included in the order"));
         orderDetail.setFeedBack(feedback);
     }
@@ -124,6 +128,7 @@ public class OrderService {
 
     public double getDeliveryPrice(String destination) throws IOException {
         double distance = getDistance(destination);
+        System.out.println(distance);
         if(distance<= 2.5){
             return 0;
         }
@@ -134,7 +139,7 @@ public class OrderService {
             return 40;
         }
         else {
-            return 5*distance;
+            return 5000*distance;
         }
     }
 

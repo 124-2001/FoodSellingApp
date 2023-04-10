@@ -1,13 +1,10 @@
 package com.example.foodsellingapp.controller;
 
-import com.auth0.jwt.JWT;
 import com.example.foodsellingapp.model.dto.OrderDetailDTO;
 import com.example.foodsellingapp.repository.UserRepository;
 import com.example.foodsellingapp.service.OrderService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +40,11 @@ public class OrderController {
         String jwt = authorizationHeader.substring(7);
         Long customerId = extractBuyerIdFromJwt(jwt);
         return ResponseEntity.ok(orderService.createOrder(dtos,customerId));
+    }
+    @DeleteMapping("/delete")
+    public ResponseEntity<?> deleteOrder(@Valid @RequestParam Long orderId){
+        orderService.deleteOrder(orderId);
+        return ResponseEntity.ok("Delete order successfully");
     }
     // Hàm trích xuất ID của người mua hàng từ JWT
     private Long extractBuyerIdFromJwt(String jwt) {
