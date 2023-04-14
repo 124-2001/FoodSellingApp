@@ -9,12 +9,9 @@ import javax.persistence.*;
 @Entity
 @Getter
 @Setter
-public class Product {
+public class Delivery {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String name;
-    private String image;
-    private Double price;
-    private Long quantity;
+    private
 }

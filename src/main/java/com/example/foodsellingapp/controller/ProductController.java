@@ -16,7 +16,7 @@ public class ProductController {
 
     @GetMapping("/get-all")
     public ResponseEntity<?> getAll(){
-        return ResponseEntity.ok(productService.getAllDish());
+        return ResponseEntity.ok(productService.getAllProduct());
     }
 
     @PostMapping("/create-product")

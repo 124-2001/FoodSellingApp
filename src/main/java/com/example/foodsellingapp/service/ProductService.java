@@ -22,21 +22,27 @@ public class ProductService {
     public Product createProduct(ProductDTO dto){
         ModelMapper mapper = new ModelMapper();
         if(dto.getName()==null){
-            throw new ProductException("Dish name is null");
+            throw new ProductException("Product name is null");
         }
         if(dto.getPrice()==null){
-            throw new ProductException("Dish price is null");
+            throw new ProductException("Product price is null");
+        }
+        if(dto.getQuantity()==null){
+            dto.setQuantity(0L);
+        }
+        if(productRepository.findByName(dto.getName()).isPresent()){
+            throw new ProductException("Product is exist");
         }
         Product product = mapper.map(dto, Product.class);
         return productRepository.save(product);
     }
 
-    public List<Product> getAllDish(){
+    public List<Product> getAllProduct(){
         return productRepository.findAll();
     }
 
     public Product updateProduct(Long productId, ProductDTO dto){
-        Product product = productRepository.findById(productId).orElseThrow(()-> new RuntimeException("ERROR : Dish is not found"));
+        Product product = productRepository.findById(productId).orElseThrow(()-> new RuntimeException("ERROR : Product is not found"));
         if(dto.getName()!=null){
             product.setName(dto.getName());
         }

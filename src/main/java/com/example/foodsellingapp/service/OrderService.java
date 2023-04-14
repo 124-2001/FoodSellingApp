@@ -4,10 +4,8 @@ import com.example.foodsellingapp.model.dto.OrderDetailDTO;
 import com.example.foodsellingapp.model.eenum.StatusOrder;
 import com.example.foodsellingapp.model.entity.Order;
 import com.example.foodsellingapp.model.entity.OrdersDetail;
-import com.example.foodsellingapp.repository.OrdersDetailRepository;
-import com.example.foodsellingapp.repository.ProductRepository;
-import com.example.foodsellingapp.repository.OrderRepository;
-import com.example.foodsellingapp.repository.UserRepository;
+import com.example.foodsellingapp.model.entity.Product;
+import com.example.foodsellingapp.repository.*;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,6 +21,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -46,16 +45,21 @@ public class OrderService {
 //    @Value("${address}")
 //    private String address;
     private static final String DISTANCE_MATRIX_API_URL = "https://maps.googleapis.com/maps/api/distancematrix/json";
-    private static final String API_KEY = "AIzaSyDp7J3q2UIA4WvUqWLe--QinPej2JSnrw8";
+    private static final String API_KEY = "AIzaSyA0nbhG4Pp90jmkZapt5NntyQucVKE-pkY";
     private static final String address ="814 láng";
 
 
     public List<Order> getAll(){
         return orderRepository.findAll();
     }
+    public Order getById(Long orderId){
+        return orderRepository.findById(orderId).get();
+    }
 
     public Order createOrder(List<OrderDetailDTO> dtos, Long customerId) throws IOException {
-//        ModelMapper mapper = new ModelMapper();
+        if(!checkProductExist(dtos)){
+            throw new RuntimeException("Product is not exist. Please try again");
+        }
         Timestamp currentTimestamp = new Timestamp(System.currentTimeMillis());
         Order order  = new Order();
         order.setCustomerId(customerId);
@@ -67,14 +71,24 @@ public class OrderService {
         }
         double totalPrice=0;
         for (OrderDetailDTO dto : dtos) {
-            //OrderDetail orderDetail = mapper.map(dto,OrderDetail.class);
-            OrdersDetail orderDetail = new OrdersDetail();
-            orderDetail.setProductId(dto.getProductId());
-            orderDetail.setQuantity(dto.getQuantity());
-            orderDetail.setOrderId(order.getId());
-            orderDetail.setPrice(productRepository.findById(dto.getProductId()).get().getPrice());
-            totalPrice+=dto.getQuantity()* productRepository.findById(dto.getProductId()).get().getPrice();
-            orderDetailRepository.save(orderDetail);
+            Optional<Product> product = productRepository.findById(dto.getProductId());
+            if(product.isPresent()){
+                OrdersDetail orderDetail = new OrdersDetail();
+                orderDetail.setProductId(dto.getProductId());
+                if(product.get().getQuantity()<dto.getQuantity()){
+                    throw new RuntimeException("Product : '"+product.get().getName()+"' is currently out of stock");
+                }
+                else {
+                    orderDetail.setQuantity(dto.getQuantity());
+                    product.get().setQuantity(product.get().getQuantity()-dto.getQuantity());
+                    productRepository.save(product.get());
+                }
+                orderDetail.setOrderId(order.getId());
+//                orderDetail.setPrice(product.get().getPrice());
+                totalPrice+=dto.getQuantity()* product.get().getPrice();
+                orderDetailRepository.save(orderDetail);
+            }
+
         }
         //lấy tiền vận chuyển theo khoảng cách
         double deliveryPrice = getDeliveryPrice(userRepository.findById(customerId).get().getAddress());
@@ -90,24 +104,59 @@ public class OrderService {
         }
         List<OrdersDetail> orderDetails = orderDetailRepository.findAllByOrderId(orderId);
         if(!orderDetails.isEmpty()){
-            orderDetailRepository.deleteAll(orderDetails);
+            for (OrdersDetail orderDetail : orderDetails) {
+                Product product = productRepository.findById(orderDetail.getProductId()).get();
+                product.setQuantity(product.getQuantity()+orderDetail.getQuantity());
+                productRepository.save(product);
+                orderDetailRepository.delete(orderDetail);
+            }
         }
         orderRepository.delete(order);
     }
 
-    public void updateOrder(long orderId,List<OrderDetailDTO> dtos){
-        Order order= orderRepository.findById(orderId).get();
-        ModelMapper mapper = new ModelMapper();
-        if(order.getStatusOrder()== StatusOrder.WAITING){
-            orderDetailRepository.deleteAll(orderDetailRepository.findAllByOrderId(orderId));
-            for (OrderDetailDTO dto : dtos) {
-                OrdersDetail detail = mapper.map(dto,OrdersDetail.class);
-                detail.setOrderId(orderId);
-                orderDetailRepository.save(detail);
-            }
+    public void updateOrder(long orderId,List<OrderDetailDTO> dtos) throws IOException {
+        if(!checkProductExist(dtos)){
+            throw new RuntimeException("Product is not exist. Please try again");
+        }
+        Optional<Order> order= orderRepository.findById(orderId);
+        if(!order.isPresent()){
+            throw new RuntimeException("Order is not exist");
         }
         else {
-            throw new  RuntimeException("Order is APPROVE or REJECT . Can't update order");
+            if(order.get().getStatusOrder()==StatusOrder.WAITING){
+                ModelMapper mapper = new ModelMapper();
+                double totalPrice =0;
+                // xoa detail cu va them lai quantity cho product
+                List<OrdersDetail> detailsOld = orderDetailRepository.findAllByOrderId(orderId);
+                for (OrdersDetail ordersDetail : detailsOld) {
+                    Product product = productRepository.findById(ordersDetail.getProductId()).get();
+                    product.setQuantity(product.getQuantity()+ordersDetail.getQuantity());
+                    productRepository.save(product);
+                    orderDetailRepository.delete(ordersDetail);
+                }
+                //add lai du lieu moi
+                for (OrderDetailDTO dto : dtos) {
+                    OrdersDetail ordersDetail = mapper.map(dto,OrdersDetail.class);
+                    ordersDetail.setOrderId(orderId);
+                    Product product = productRepository.findById(dto.getProductId()).get();
+                    if(product.getQuantity()<dto.getQuantity()){
+                        throw new RuntimeException("Product : '"+product.getName()+"' is currently out of stock");
+                    }
+                    else {
+                        product.setQuantity(product.getQuantity()-dto.getQuantity());
+                    }
+                    totalPrice+= dto.getQuantity()*product.getPrice();
+                    productRepository.save(product);
+                    orderDetailRepository.save(ordersDetail);
+                }
+                double deliveryPrice = getDeliveryPrice(userRepository.findById(order.get().getCustomerId()).get().getAddress());
+                totalPrice+=deliveryPrice;
+                order.get().setTotalPrice(totalPrice);
+                orderRepository.save(order.get());
+            }
+            else {
+                throw new RuntimeException("Status order is :"+order.get().getStatusOrder()+" can't update");
+            }
         }
     }
 
@@ -115,15 +164,25 @@ public class OrderService {
         OrdersDetail orderDetail = orderDetailRepository.findById(orderDetailId).orElseThrow(()->
                 new RuntimeException("The product is not included in the order"));
         orderDetail.setFeedBack(feedback);
+        orderDetailRepository.save(orderDetail);
     }
 
     public boolean approveOrder(long orderId){
-        Order order= orderRepository.findById(orderId).get();
+        Order order= orderRepository.findById(orderId).orElseThrow(
+                ()->new RuntimeException("Order is not exist"));
         if(order.getStatusOrder()==StatusOrder.WAITING){
             order.setStatusOrder(StatusOrder.APPROVED);
             return true;
         }
         return false;
+    }
+    public boolean checkProductExist(List<OrderDetailDTO> dtos){
+        for (OrderDetailDTO dto : dtos) {
+            if(!productRepository.findById(dto.getProductId()).isPresent()){
+                return false;
+            }
+        }
+        return true;
     }
 
     public double getDeliveryPrice(String destination) throws IOException {
@@ -177,7 +236,6 @@ public class OrderService {
             return 0;
         }
     }
-
 
 
 }

@@ -20,7 +20,7 @@ public class Order {
     @Column(name = "created_date")
     private Timestamp createdDate;
     @Column(name = "total_price")
-    private double totalPrice;
+    private Double totalPrice;
     @Column(name = "status_order")
     private StatusOrder statusOrder;
 //    private Long shopId;

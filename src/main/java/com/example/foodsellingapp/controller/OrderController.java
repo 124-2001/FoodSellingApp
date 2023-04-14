@@ -27,6 +27,10 @@ public class OrderController {
     public ResponseEntity<?> getAllOrder(){
         return ResponseEntity.ok(orderService.getAll());
     }
+    @GetMapping("get-order")
+    public ResponseEntity<?> getOrderById(@Valid @RequestParam Long orderId){
+        return ResponseEntity.ok(orderService.getById(orderId));
+    }
 
     @PostMapping("/create")
     public ResponseEntity<?> createOrder(@Valid @RequestBody List<OrderDetailDTO> dtos, HttpServletRequest request) throws IOException {
@@ -45,6 +49,11 @@ public class OrderController {
     public ResponseEntity<?> deleteOrder(@Valid @RequestParam Long orderId){
         orderService.deleteOrder(orderId);
         return ResponseEntity.ok("Delete order successfully");
+    }
+    @PostMapping("/update")
+    public ResponseEntity<?> updateOrder(@Valid @RequestBody List<OrderDetailDTO> dtos,@RequestParam Long orderId) throws IOException {
+        orderService.updateOrder(orderId,dtos);
+        return ResponseEntity.ok("Update order successfully");
     }
     // Hàm trích xuất ID của người mua hàng từ JWT
     private Long extractBuyerIdFromJwt(String jwt) {

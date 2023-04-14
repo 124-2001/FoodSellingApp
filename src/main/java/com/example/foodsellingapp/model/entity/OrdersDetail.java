@@ -20,12 +20,10 @@ public class OrdersDetail {
     private Long orderId;
     @Column(name = "product_id",nullable = true)
     private Long productId;
-
     @Column(name = "QUANTITY", nullable = true)
     private Integer quantity;
-
-    @Column(name = "PRICE", nullable = true, precision = 0)
-    private Double price;
+//    @Column(name = "PRICE", nullable = true, precision = 0)
+//    private Double price;
     @Column(name = "vote",nullable = true)
     private Double vote;
     @Column(name = "feed_back")
