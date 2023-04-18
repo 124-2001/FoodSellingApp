@@ -110,6 +110,11 @@ public class AuthController {
                                 .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
                         roles.add(customerRole);
                         break;
+                    case "shipper":
+                        Role shipperRole = roleRepository.findByName(RoleName.ROLE_SHIPPER)
+                                .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                        roles.add(shipperRole);
+                        break;
                     default:
                         throw new RuntimeException("Error: Role is not found.");
                 }

@@ -1,11 +1,14 @@
 package com.example.foodsellingapp.service;
 
 import com.example.foodsellingapp.model.dto.OrderDetailDTO;
+import com.example.foodsellingapp.model.eenum.StatusDelivery;
 import com.example.foodsellingapp.model.eenum.StatusOrder;
+import com.example.foodsellingapp.model.entity.Delivery;
 import com.example.foodsellingapp.model.entity.Order;
 import com.example.foodsellingapp.model.entity.OrdersDetail;
 import com.example.foodsellingapp.model.entity.Product;
 import com.example.foodsellingapp.repository.*;
+import com.example.foodsellingapp.service.distance.DistanceService;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,6 +38,10 @@ public class OrderService {
     ProductRepository productRepository;
     @Autowired
     UserRepository userRepository;
+    @Autowired
+    DistanceService distanceService;
+    @Autowired
+    DeliveryRepository deliveryRepository;
 
 //    @Value("${DISTANCE_MATRIX_API_URL}")
 //    private String DISTANCE_MATRIX_API_URL;
@@ -44,10 +51,6 @@ public class OrderService {
 //
 //    @Value("${address}")
 //    private String address;
-    private static final String DISTANCE_MATRIX_API_URL = "https://maps.googleapis.com/maps/api/distancematrix/json";
-    private static final String API_KEY = "AIzaSyA0nbhG4Pp90jmkZapt5NntyQucVKE-pkY";
-    private static final String address ="814 láng";
-
 
     public List<Order> getAll(){
         return orderRepository.findAll();
@@ -55,7 +58,12 @@ public class OrderService {
     public Order getById(Long orderId){
         return orderRepository.findById(orderId).get();
     }
-
+    public List<Order> getAllByCustomerId(Long customerId){
+        return orderRepository.findAllByCustomerId(customerId);
+    }
+    public List<Order> getAllByStatusOrder(StatusOrder statusOrder){
+        return orderRepository.findAllByStatusOrder(statusOrder);
+    }
     public Order createOrder(List<OrderDetailDTO> dtos, Long customerId) throws IOException {
         if(!checkProductExist(dtos)){
             throw new RuntimeException("Product is not exist. Please try again");
@@ -84,7 +92,6 @@ public class OrderService {
                     productRepository.save(product.get());
                 }
                 orderDetail.setOrderId(order.getId());
-//                orderDetail.setPrice(product.get().getPrice());
                 totalPrice+=dto.getQuantity()* product.get().getPrice();
                 orderDetailRepository.save(orderDetail);
             }
@@ -92,7 +99,7 @@ public class OrderService {
         }
         //lấy tiền vận chuyển theo khoảng cách
         double deliveryPrice = getDeliveryPrice(userRepository.findById(customerId).get().getAddress());
-        totalPrice+=deliveryPrice;
+        order.setDeliveryPrice(deliveryPrice);
         order.setTotalPrice(totalPrice);
         return orderRepository.save(order);
     }
@@ -150,7 +157,7 @@ public class OrderService {
                     orderDetailRepository.save(ordersDetail);
                 }
                 double deliveryPrice = getDeliveryPrice(userRepository.findById(order.get().getCustomerId()).get().getAddress());
-                totalPrice+=deliveryPrice;
+                order.get().setDeliveryPrice(deliveryPrice);
                 order.get().setTotalPrice(totalPrice);
                 orderRepository.save(order.get());
             }
@@ -160,11 +167,18 @@ public class OrderService {
         }
     }
 
-    public void feedbackOrder(long orderDetailId,String feedback){
+    public boolean feedbackOrder(long orderDetailId,String feedback){
         OrdersDetail orderDetail = orderDetailRepository.findById(orderDetailId).orElseThrow(()->
                 new RuntimeException("The product is not included in the order"));
-        orderDetail.setFeedBack(feedback);
-        orderDetailRepository.save(orderDetail);
+        Delivery delivery = deliveryRepository.findByOrderId(orderDetail.getOrderId());
+        if(delivery.getStatusDelivery() != StatusDelivery.DONE){
+            return false;
+        }
+        else {
+            orderDetail.setFeedBack(feedback);
+            orderDetailRepository.save(orderDetail);
+            return true;
+        }
     }
 
     public boolean approveOrder(long orderId){
@@ -172,6 +186,15 @@ public class OrderService {
                 ()->new RuntimeException("Order is not exist"));
         if(order.getStatusOrder()==StatusOrder.WAITING){
             order.setStatusOrder(StatusOrder.APPROVED);
+            return true;
+        }
+        return false;
+    }
+    public boolean rejectOrder(long orderId){
+        Order order= orderRepository.findById(orderId).orElseThrow(
+                ()->new RuntimeException("Order is not exist"));
+        if(order.getStatusOrder()==StatusOrder.WAITING){
+            order.setStatusOrder(StatusOrder.REJECT);
             return true;
         }
         return false;
@@ -186,7 +209,7 @@ public class OrderService {
     }
 
     public double getDeliveryPrice(String destination) throws IOException {
-        double distance = getDistance(destination);
+        double distance = distanceService.getDistance(destination);
         System.out.println(distance);
         if(distance<= 2.5){
             return 0;
@@ -199,41 +222,6 @@ public class OrderService {
         }
         else {
             return 5000*distance;
-        }
-    }
-
-    public double getDistance(String destination) throws IOException {
-        String url = DISTANCE_MATRIX_API_URL + "?origins=" + URLEncoder.encode(address, "UTF-8")
-                + "&destinations=" + URLEncoder.encode(destination, "UTF-8")
-                + "&key=" + API_KEY;
-
-        URL urlObject = new URL(url);
-
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(urlObject.openStream()))) {
-            StringBuilder response = new StringBuilder();
-            String inputLine;
-
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-
-            JSONObject jsonObject = new JSONObject(response.toString());
-
-            String status = jsonObject.getString("status");
-
-            if (!"OK".equals(status)) {
-                throw new IOException("API returned status code " + status);
-            }
-
-            JSONObject element = jsonObject.getJSONArray("rows").getJSONObject(0)
-                    .getJSONArray("elements").getJSONObject(0);
-//            String distanceText = element.getJSONObject("distance").getString("text");
-            double distanceValue = element.getJSONObject("distance").getDouble("value") / 1000.0;
-
-            return distanceValue;
-        } catch (JSONException e) {
-            e.printStackTrace();
-            return 0;
         }
     }
 

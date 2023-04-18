@@ -21,6 +21,8 @@ public class Order {
     private Timestamp createdDate;
     @Column(name = "total_price")
     private Double totalPrice;
+    @Column (name = "delivery_cost")
+    private Double deliveryPrice;
     @Column(name = "status_order")
     private StatusOrder statusOrder;
 //    private Long shopId;

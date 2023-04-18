@@ -1,6 +1,8 @@
 package com.example.foodsellingapp.controller;
 
 import com.example.foodsellingapp.model.dto.OrderDetailDTO;
+import com.example.foodsellingapp.model.eenum.StatusOrder;
+import com.example.foodsellingapp.payload.response.MessageResponse;
 import com.example.foodsellingapp.repository.UserRepository;
 import com.example.foodsellingapp.service.OrderService;
 import io.jsonwebtoken.Claims;
@@ -27,11 +29,18 @@ public class OrderController {
     public ResponseEntity<?> getAllOrder(){
         return ResponseEntity.ok(orderService.getAll());
     }
-    @GetMapping("get-order")
+    @GetMapping("get-order-by-id")
     public ResponseEntity<?> getOrderById(@Valid @RequestParam Long orderId){
         return ResponseEntity.ok(orderService.getById(orderId));
     }
-
+    @GetMapping("/get-order-by-customer")
+    public ResponseEntity<?> getOrderByCustomerId(@Valid @RequestParam Long customerId){
+        return ResponseEntity.ok(orderService.getAllByCustomerId(customerId));
+    }
+    @GetMapping("/get-all-by-status")
+    public ResponseEntity<?> getAllByStatus(@Valid @RequestParam StatusOrder statusOrder){
+        return ResponseEntity.ok(orderService.getAllByStatusOrder(statusOrder));
+    }
     @PostMapping("/create")
     public ResponseEntity<?> createOrder(@Valid @RequestBody List<OrderDetailDTO> dtos, HttpServletRequest request) throws IOException {
         // Kiểm tra xem người dùng đã đăng nhập chưa, nếu chưa thì trả về lỗi 401
@@ -55,6 +64,34 @@ public class OrderController {
         orderService.updateOrder(orderId,dtos);
         return ResponseEntity.ok("Update order successfully");
     }
+    @PatchMapping("/feed-back")
+    public ResponseEntity<?>feedBackOrder(@Valid @RequestParam Long orderId, @PathVariable String feedBack){
+        if(orderService.feedbackOrder(orderId,feedBack)){
+            return ResponseEntity.ok("Feedback successfully");
+        }
+        else {
+            return ResponseEntity.badRequest().body(new MessageResponse("Error: Feedback failed"));
+        }
+    }
+    @PatchMapping("/approve-order")
+    public ResponseEntity<?> approveOrder(@Valid @RequestParam Long orderId){
+        if(orderService.approveOrder(orderId)){
+            return ResponseEntity.ok("Update order successfully");
+        }
+        else {
+            return ResponseEntity.badRequest().body(new MessageResponse("Error: Update failed"));
+        }
+    }
+    @PatchMapping("/reject-order")
+    public ResponseEntity<?> rejectOrder(@Valid @RequestParam Long orderId){
+        if(orderService.rejectOrder(orderId)){
+            return ResponseEntity.ok("Update order successfully");
+        }
+        else {
+            return ResponseEntity.badRequest().body(new MessageResponse("Error: Update failed"));
+        }
+    }
+
     // Hàm trích xuất ID của người mua hàng từ JWT
     private Long extractBuyerIdFromJwt(String jwt) {
         Claims claims = Jwts.parser().setSigningKey("bezKoderSecretKey").parseClaimsJws(jwt).getBody();

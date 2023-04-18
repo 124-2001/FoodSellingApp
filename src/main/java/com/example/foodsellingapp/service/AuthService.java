@@ -20,6 +20,10 @@ public class AuthService {
     @Autowired
     UserRepository userRepository;
 
+    public User getUser(Long userId){
+        return userRepository.findById(userId).get();
+    }
+
     public void blockUser(Long userId){
         User user =userRepository.findById(userId).orElseThrow(()->
                 new RuntimeException("User is not exist"));
