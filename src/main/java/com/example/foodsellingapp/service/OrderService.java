@@ -23,6 +23,9 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -208,6 +211,17 @@ public class OrderService {
         return true;
     }
 
+    public List<?> getBestProduct(){
+        // Lấy ngày hiện tại
+        Date today = new Date();
+
+        // Lấy ngày 15 ngày trước đó
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(today);
+        calendar.add(Calendar.DATE, -15);
+        Date date15DaysAgo = calendar.getTime();
+        return orderDetailRepository.findTopProductsByVoteInLast15Da(today,date15DaysAgo);
+    }
     public double getDeliveryPrice(String destination) throws IOException {
         double distance = distanceService.getDistance(destination);
         System.out.println(distance);

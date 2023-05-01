@@ -82,6 +82,10 @@ public class OrderController {
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Update failed"));
         }
     }
+    @GetMapping("/get-best-product")
+    public ResponseEntity<?> getBestProduct(){
+        return ResponseEntity.ok(orderService.getBestProduct());
+    }
     @PatchMapping("/reject-order")
     public ResponseEntity<?> rejectOrder(@Valid @RequestParam Long orderId){
         if(orderService.rejectOrder(orderId)){

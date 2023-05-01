@@ -29,7 +29,7 @@ public class DeliveryService {
     OrderRepository orderRepository;
 
     public List<Delivery> getAll(){
-       return deliveryRepository.findAll();
+        return deliveryRepository.findAll();
     }
 
     public Delivery getShipper(Long shipperId , Long orderId){
@@ -58,5 +58,4 @@ public class DeliveryService {
         delivery.setStatusDelivery(statusDelivery);
         return deliveryRepository.save(delivery);
     }
-
 }
