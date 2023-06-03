@@ -19,7 +19,7 @@ public interface OrdersDetailRepository extends JpaRepository<OrdersDetail,Long>
             "            BETWEEN ?1 AND ?2  " +
             "            GROUP BY od.product_id " +
             "            ORDER BY avg_vote DESC", nativeQuery = true)
-    List<Object[]> findTopProductsByVoteInLast15Da(Date startDate, Date endDate);
+    List<Object[]> findTopProductsByVoteInLast15Day(String startDate, String endDate);
 
 
 

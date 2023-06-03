@@ -1,6 +1,7 @@
 package com.example.foodsellingapp.controller;
 
 import com.example.foodsellingapp.exception.TokenRefreshException;
+import com.example.foodsellingapp.model.dto.LoginInfo;
 import com.example.foodsellingapp.model.eenum.RoleName;
 import com.example.foodsellingapp.model.entity.RefreshToken;
 import com.example.foodsellingapp.model.entity.Role;
@@ -15,7 +16,6 @@ import com.example.foodsellingapp.repository.UserRepository;
 import com.example.foodsellingapp.security.RefreshTokenService;
 import com.example.foodsellingapp.security.UserDetailsImpl;
 import com.example.foodsellingapp.security.jwt.JwtUtils;
-import com.example.foodsellingapp.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,9 +28,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -39,9 +37,9 @@ import java.util.stream.Collectors;
 public class AuthController {
     @Autowired
     AuthenticationManager authenticationManager;
-
-    @Autowired
-    AuthService authService;
+//
+//    @Autowired
+//    AuthService authService;
 
     @Autowired
     UserRepository userRepository;
@@ -61,40 +59,42 @@ public class AuthController {
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
 
-//        Authentication authentication = authenticationManager
-//                .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
-//
-//        SecurityContextHolder.getContext().setAuthentication(authentication);
-//
-//        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-//
-//        String jwt = jwtUtils.generateJwtToken(userDetails);
-//
-//        List<String> roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
-//                .collect(Collectors.toList());
-//
-//        RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
-//
-//        return ResponseEntity.ok(new JwtResponse(jwt, refreshToken.getToken(), userDetails.getId(),
-//                userDetails.getUsername(), userDetails.getEmail(), roles));
-        LoginResponse response = authService.login(loginRequest);
-        return new ResponseEntity<>(response, HttpStatus.OK);
+        Authentication authentication = authenticationManager
+                .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+
+        String jwt = jwtUtils.generateJwtToken(userDetails);
+
+        List<String> roles = userDetails.getAuthorities().stream().map(item -> item.getAuthority())
+                .collect(Collectors.toList());
+
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
+//        return ResponseEntity.ok(jwt);
+        return ResponseEntity.ok(new JwtResponse(jwt, refreshToken.getToken(), userDetails.getId(),
+                userDetails.getUsername(),userDetails.getEmail(),userDetails.getFirstName(),userDetails.getLastName(), roles));
+//        LoginResponse response = authService.login(loginRequest);
+//        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
-//        if (userRepository.existsByUsername(signUpRequest.getUsername())) {
-//            return ResponseEntity.badRequest().body(new MessageResponse("Error: Username is already taken!"));
-//        }
-//
-//        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-//            return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is already in use!"));
-//        }
-//
-//        // Create new user's account
-//        User user = new User(signUpRequest.getUsername(), signUpRequest.getEmail(),
-//                encoder.encode(signUpRequest.getPassword()));
-//
+        if (userRepository.existsByUsername(signUpRequest.getUsername())) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Error: Username is already taken!"));
+        }
+
+        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is already in use!"));
+        }
+
+        // Create new user's account
+        User user = new User(signUpRequest.getUsername(), encoder.encode(signUpRequest.getPassword())
+                , signUpRequest.getEmail()
+                ,signUpRequest.getAddress()
+                ,signUpRequest.getFirstname(),signUpRequest.getLastname(),signUpRequest.getPhone());
+
 //        Set<String> strRoles = signUpRequest.getRole();
 //        Set<Role> roles = new HashSet<>();
 //
@@ -127,30 +127,38 @@ public class AuthController {
 //        }
 //
 //        user.setRoles(roles);
-//        userRepository.save(user);
-        authService.signup(signUpRequest);
+        Optional<Role> role = roleRepository.findByName(RoleName.ROLE_CUSTOMER);
+        List<Role> roles = new ArrayList<>();
+        roles.add(role.get());
+        user.setRoles(roles);
+        userRepository.save(user);
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+//        authService.signup(signUpRequest);
+//        return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }
 
-    @PostMapping("/refreshtoken")
+    @PostMapping("/refresh-token")
     public ResponseEntity<?> refreshtoken(@Valid @RequestBody RefreshTokenRequest request) {
-//        String requestRefreshToken = request.getRefreshToken();
-//
-//        return refreshTokenService.findByToken(requestRefreshToken)
-//                .map(refreshTokenService::verifyExpiration)
-//                .map(RefreshToken::getUser)
-//                .map(user -> {
-//                    String token = jwtUtils.generateTokenFromUsername(user.getUsername());
-//                    return ResponseEntity.ok(new TokenRefreshResponse(token, requestRefreshToken));
-//                })
-//                .orElseThrow(() -> new TokenRefreshException(requestRefreshToken,
-//                        "Refresh token is not in database!"));
-        RefreshTokenResponse response = authService.refreshToken(request);
-        return new ResponseEntity<>(response, HttpStatus.OK);
+        String requestRefreshToken = request.getRefreshToken();
+
+        return refreshTokenService.findByToken(requestRefreshToken)
+                .map(refreshTokenService::verifyExpiration)
+                .map(RefreshToken::getUser)
+                .map(user -> {
+                    String token = jwtUtils.generateTokenFromUsername(user.getUsername());
+                    return ResponseEntity.ok(new TokenRefreshResponse(token, requestRefreshToken));
+                })
+                .orElseThrow(() -> new TokenRefreshException(requestRefreshToken,
+                        "Refresh token is not in database!"));
+//        RefreshTokenResponse response = authService.refreshToken(request);
+//        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @PostMapping("/signout")
     public ResponseEntity<?> logoutUser() {
+//        LoginInfo userDetails = (LoginInfo) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+//        Long userId = userDetails.getUserId();
+//        refreshTokenService.deleteByUserId(userId);
         UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long userId = userDetails.getId();
         refreshTokenService.deleteByUserId(userId);

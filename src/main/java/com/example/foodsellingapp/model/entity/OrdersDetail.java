@@ -20,7 +20,7 @@ public class OrdersDetail {
     @Column(name = "product_id",nullable = true)
     private Long productId;
     @Column(name = "QUANTITY", nullable = true)
-    private Integer quantity;
+    private Long quantity;
     @Column(name = "vote",nullable = true)
     private Double vote;
     @Column(name = "feed_back")

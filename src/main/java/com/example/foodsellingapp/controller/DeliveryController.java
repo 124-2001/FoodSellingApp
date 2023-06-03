@@ -13,14 +13,19 @@ public class DeliveryController {
     @Autowired
     DeliveryService deliveryService;
 
+    @CrossOrigin(origins = "*", allowedHeaders = "*", methods = RequestMethod.GET)
     @GetMapping("/get-all")
     public ResponseEntity<?> getDeliveryByData(){
         return ResponseEntity.ok(deliveryService.getAll());
     }
-    @PostMapping("/create-delevery")
+
+
+    @CrossOrigin(origins = "*", allowedHeaders = "*", methods = RequestMethod.POST)
+    @PostMapping("/create-delivery")
     public ResponseEntity<?> createDelivery(@RequestParam Long shipperId,@RequestParam Long orderId){
         return ResponseEntity.ok(deliveryService.getShipper(shipperId,orderId));
     }
+
     @PostMapping("/update")
     public ResponseEntity<?> updateDelivery(@RequestParam Long orderId, @RequestParam(name = "status") StatusDelivery statusDelivery){
         return ResponseEntity.ok(deliveryService.updateDelivery(orderId,statusDelivery));

@@ -3,10 +3,9 @@ package com.example.foodsellingapp.service;
 import com.example.foodsellingapp.model.dto.OrderDetailDTO;
 import com.example.foodsellingapp.model.eenum.StatusDelivery;
 import com.example.foodsellingapp.model.eenum.StatusOrder;
-import com.example.foodsellingapp.model.entity.Delivery;
-import com.example.foodsellingapp.model.entity.Order;
-import com.example.foodsellingapp.model.entity.OrdersDetail;
-import com.example.foodsellingapp.model.entity.Product;
+import com.example.foodsellingapp.model.entity.*;
+import com.example.foodsellingapp.payload.response.OrderDetailResponse;
+import com.example.foodsellingapp.payload.response.OrderResponse;
 import com.example.foodsellingapp.repository.*;
 import com.example.foodsellingapp.service.distance.DistanceService;
 import lombok.extern.slf4j.Slf4j;
@@ -23,11 +22,10 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.Timestamp;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @Transactional
@@ -45,6 +43,8 @@ public class OrderService {
     DistanceService distanceService;
     @Autowired
     DeliveryRepository deliveryRepository;
+    @Autowired
+    CartService cartService;
 
 //    @Value("${DISTANCE_MATRIX_API_URL}")
 //    private String DISTANCE_MATRIX_API_URL;
@@ -55,19 +55,78 @@ public class OrderService {
 //    @Value("${address}")
 //    private String address;
 
-    public List<Order> getAll(){
-        return orderRepository.findAll();
+    public List<OrderResponse> getAll(){
+        List<Order> orderList = orderRepository.findAll();
+        return getOrderResponses(orderList);
     }
-    public Order getById(Long orderId){
-        return orderRepository.findById(orderId).get();
+    public List<?> getDetailOrder(Long orderId){
+        List<OrdersDetail> ordersDetails = orderDetailRepository.findAllByOrderId(orderId);
+        List<OrderDetailResponse> orderDetailResponses = new ArrayList<>();
+        for (OrdersDetail ordersDetail : ordersDetails) {
+            OrderDetailResponse detail = new OrderDetailResponse();
+            String productName = productRepository.findById(ordersDetail.getProductId()).get().getName();
+            Double price  = productRepository.findById(ordersDetail.getProductId()).get().getPrice();
+            detail.setProductName(productName);
+            detail.setPrice(price);
+            detail.setQuantity(ordersDetail.getQuantity());
+            orderDetailResponses.add(detail);
+        }
+        return orderDetailResponses;
     }
-    public List<Order> getAllByCustomerId(Long customerId){
-        return orderRepository.findAllByCustomerId(customerId);
+//    public List<Order> getAllByCustomerName(String customerName){
+//        return orderRepository.findAllByCustomerId(customerId);
+//    }
+    public List<OrderResponse> getAllByCustomerId(Long customerId){
+        List<Order> orderList = orderRepository.findAllByCustomerId(customerId);
+        return getOrderResponses(orderList);
     }
     public List<Order> getAllByStatusOrder(StatusOrder statusOrder){
         return orderRepository.findAllByStatusOrder(statusOrder);
     }
-    public Order createOrder(List<OrderDetailDTO> dtos, Long customerId) throws IOException {
+    public List<OrderResponse> getAllApproveOrder(){
+        List<Order> orderList = orderRepository.findAllByStatusOrder(StatusOrder.APPROVED);
+        return getOrderResponses(orderList);
+    }
+    public List<OrderResponse> getAllByStatusOrderAndCustomer(StatusOrder statusOrder,Long id){
+        List<Order> orderList = orderRepository.findAllByCustomerIdAndStatusOrder(id,statusOrder);
+        return getOrderResponses(orderList);
+    }
+
+    private List<OrderResponse> getOrderResponses(List<Order> orderList) {
+        List<OrderResponse> responses = new ArrayList<>();
+        for (Order order : orderList) {
+            String customerName = userRepository.findById(order.getCustomerId()).get().getFirstName()+" "+userRepository.findById(order.getCustomerId()).get().getLastName();
+            OrderResponse response = new OrderResponse(order.getId(),customerName,order.getCreatedDate()
+                    ,order.getTotalPrice(),order.getStatusOrder());
+            responses.add(response);
+        }
+        return responses;
+    }
+
+    public List<?> getAllByCreateDate(String date){
+        String dateString = date.concat(" 00:00:00");
+        String pattern = "yyyy-MM-dd HH:mm:ss";
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat(pattern);
+        Timestamp timestamp = null;
+
+        try {
+            java.util.Date parsedDate = dateFormat.parse(dateString);
+            timestamp = new java.sql.Timestamp(parsedDate.getTime());
+            return orderRepository.findAllByCreatedDate(timestamp);
+        } catch (ParseException e) {
+            return null;
+        }
+    }
+    public Order createOrder(Long customerId) throws IOException {
+        List<Cart> carts = cartService.getListCartByCustomer(customerId);
+        List<OrderDetailDTO> dtos = new ArrayList<>();
+        for (Cart cart : carts) {
+            OrderDetailDTO dto = new OrderDetailDTO();
+            dto.setProductId(cart.getIdProduct());
+            dto.setQuantity(cart.getQuantity());
+            dtos.add(dto);
+        }
         if(!checkProductExist(dtos)){
             throw new RuntimeException("Product is not exist. Please try again");
         }
@@ -98,12 +157,12 @@ public class OrderService {
                 totalPrice+=dto.getQuantity()* product.get().getPrice();
                 orderDetailRepository.save(orderDetail);
             }
-
         }
         //lấy tiền vận chuyển theo khoảng cách
         double deliveryPrice = getDeliveryPrice(userRepository.findById(customerId).get().getAddress());
         order.setDeliveryPrice(deliveryPrice);
         order.setTotalPrice(totalPrice);
+        cartService.acceptCart(customerId);
         return orderRepository.save(order);
     }
 
@@ -211,17 +270,7 @@ public class OrderService {
         return true;
     }
 
-    public List<?> getBestProduct(){
-        // Lấy ngày hiện tại
-        Date today = new Date();
 
-        // Lấy ngày 15 ngày trước đó
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(today);
-        calendar.add(Calendar.DATE, -15);
-        Date date15DaysAgo = calendar.getTime();
-        return orderDetailRepository.findTopProductsByVoteInLast15Da(today,date15DaysAgo);
-    }
     public double getDeliveryPrice(String destination) throws IOException {
         double distance = distanceService.getDistance(destination);
         System.out.println(distance);
@@ -229,10 +278,10 @@ public class OrderService {
             return 0;
         }
         else if (2.5<distance && distance<=5){
-            return 25;
+            return 25000;
         }
         else if (distance>20){
-            return 40;
+            return 40000;
         }
         else {
             return 5000*distance;
